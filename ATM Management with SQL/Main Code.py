@@ -179,6 +179,10 @@ while True:
         if (confirmation=="confirm"):
             db_operations.delete_user_by_id(id)
 
+    elif entry_Choice.lower() == 'return':
+        print("Thank you for choosing MyBank")
+        exit()
+
     else:
         if wrong_input == 2:
             print("!!!!!!!!!!!!!!!!!!!!")
