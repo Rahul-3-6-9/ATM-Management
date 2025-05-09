@@ -21,10 +21,6 @@ A simple ATM Management System built using **Python** and **SQLite**. This proje
 
 2. **Initialize the Database**
 
-    Open db_operations.py.
-
-    Run the script:
-
     ```bash
     python db_operations.py
 
