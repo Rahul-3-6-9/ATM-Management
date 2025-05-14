@@ -2,7 +2,10 @@ import getpass
 import string
 import os
 import db_operations
+import hashlib
 
+def hash_pin(pin):
+    return hashlib.sha256(pin.encode()).hexdigest()
 
 print("========================================")
 print("........................................")
@@ -49,7 +52,7 @@ while True:
 
         print("User Added Successfully")
         print(":::::::::::::::::::::::::\n\n2")
-        db_operations.add_entry_to_users(id, first_name, last_name, pin, gender, deposit)
+        db_operations.add_entry_to_users(id, first_name, last_name, hash_pin(pin), gender, deposit)
 
     elif entry_Choice == '2':
         user_id = input("Enter your Account Number: ")
@@ -67,7 +70,7 @@ while True:
         pin = input("ENTER YOUR PIN : ")
         print(":::::::::::::::::::::::::")
 
-        if db_operations.check_pin_by_id(user_id, pin) == False:
+        if db_operations.check_pin_by_id(user_id, hash_pin(pin)) == False:
             print(":::::::::::::::::::::::::")
             print("PIN ENTERED IS INVALID")
             print(":::::::::::::::::::::::::")
@@ -141,7 +144,7 @@ while True:
                         if pin_confirm != new_pin:
                             print("PIN MISMATCH ! ")
                         else:
-                            db_operations.change_pin_by_id(user_id, new_pin)
+                            db_operations.change_pin_by_id(user_id, hash_pin(new_pin))
                             print("New pin saved")
                     else:
                         print("Your pin must contain 4 digits and must be different from your original pin")
@@ -168,7 +171,7 @@ while True:
         pin = input("ENTER YOUR PIN : ")
         print(":::::::::::::::::::::::::")
 
-        if db_operations.check_pin_by_id(id, pin) == False:
+        if db_operations.check_pin_by_id(id, hash_pin(pin)) == False:
             print(":::::::::::::::::::::::::")
             print("PIN ENTERED IS INVALID")
             print(":::::::::::::::::::::::::")
