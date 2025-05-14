@@ -1,197 +1,125 @@
-import getpass
-import string
-import os
-import db_operations
+import sqlite3
+from datetime import datetime
 import hashlib
+
+db_name = 'atm.db'
 
 def hash_pin(pin):
     return hashlib.sha256(pin.encode()).hexdigest()
 
-print("========================================")
-print("........................................")
-print("       WELCOME TO THE ATM SYSTEM        ")
-print("........................................")
-print("========================================")
+def create_db():
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
 
-wrong_input = 0
-while True:
-    entry_Choice = input("If You Want To Register A User: Press 1 \nIf You Are Already Registered: Press 2 \nIf You Want to Delete an Account: Press 3 \n")
-    if entry_Choice == '1':
-        print(":::::::::::::::::::::::::")
-        id = int(input("ENTER YOUR ACCOUNT NUMBER: "))
-        while (id in db_operations.get_all_user_ids()):
-            print("!!!ENTER THE CORRECT ACCOUNT NUMBER!!!")
-            id = int(input("ENTER YOUR ACCOUNT NUMBER: "))
+    sql_command = """CREATE TABLE users (
+    user_id INTEGER PRIMARY KEY,
+    fname VARCHAR(20),
+    lname VARCHAR(30),
+    pin VARCHAR(4),
+    gender CHAR(1),
+    balance INTEGER);"""
 
-        first_name = input("ENTER YOUR FIRST NAME : ").lower()
-        last_name = input("ENTER YOUR LAST NAME : ").lower()
+    cursor.execute(sql_command)
+    sqliteConnection.close()
 
-        print("ENTER YOUR PIN (4 DIGITS) : ", end="")
-        while True:
-            pin = int(input())
-            if pin >= 1000 and pin <= 9999:
-                break
-            else:
-                print("Wrong Format ... Please Enter Again", end="")
 
-        print("ENTER YOUR GENDER(M - MALE /F - FEMALE /O - OTHERS /N - NOT WILLING TO MENTION) : ", end="")
-        while True:
-            gender = input().upper()
-            if gender in ['M', 'F', 'O', 'N']:
-                break
-            else:
-                print("Invalid Choice ... Please Enter Again", end="")
+def delete_db():
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
 
-        print("ENTER YOUR DEPOSIT(LIMIT = 0) : ", end="")
-        while True:
-            deposit = int(input())
-            if deposit > 0:
-                break
-            else:
-                print("Below Limit ... Please Enter Again", end="")
+    cursor.execute("DROP TABLE users")
+    sqliteConnection.close()
 
-        print("User Added Successfully")
-        print(":::::::::::::::::::::::::\n\n2")
-        db_operations.add_entry_to_users(id, first_name, last_name, hash_pin(pin), gender, deposit)
 
-    elif entry_Choice == '2':
-        user_id = input("Enter your Account Number: ")
-        user_id = int(user_id)
+def read_users_table():
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    cursor.execute("SELECT * FROM users")
+    ans = cursor.fetchall()
+    for i in ans:
+        print("Acc. no", i[0], "firstname", i[1], "lastname", i[2], "pin", i[3], "gender", i[4], "balance_in_db", i[5])
+    sqliteConnection.close()
 
-        matching_list = db_operations.get_user_by_id(user_id)
 
-        if len(matching_list) == 0:
-            print("---------------------")
-            print("   INVALID ACCOUNT   ")
-            print("---------------------")
-            break
+def last_user_id():
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    ans = cursor.fetchall()
+    return ans[0]
 
-        print(":::::::::::::::::::::::::")
-        pin = input("ENTER YOUR PIN : ")
-        print(":::::::::::::::::::::::::")
 
-        if db_operations.check_pin_by_id(user_id, hash_pin(pin)) == False:
-            print(":::::::::::::::::::::::::")
-            print("PIN ENTERED IS INVALID")
-            print(":::::::::::::::::::::::::")
-            break
+def get_user_by_id(user_id):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    cursor.execute("SELECT * FROM users WHERE user_id={}".format(user_id))
+    ans = cursor.fetchall()
+    sqliteConnection.close()
+    return ans
 
-        print("*************************")
-        print("     LOGIN SUCCESSFUL    ")
-        print("*************************")
-        print("Welcome to MyBank ATM")
 
-        while True:
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            response = input(
-                "Select an option from the following that you would like to proceed with : Check Balance(c), Deposit(D), Withdraw(w), Change pin(p), Quit(q) : ")
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+def add_entry_to_users(id, fname, lname, pin, gender, balance):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
 
-            response = response.lower()
+    present_date = datetime.now()
+    command = "INSERT INTO users VALUES ({id}, '{fname}', '{lname}', '{pin}', '{gender}', {balance})".format(
+        id=id, fname=fname, lname=lname, pin=pin, gender=gender, balance=balance
+    )
+    cursor.execute(command)
+    sqliteConnection.commit()
+    sqliteConnection.close()
 
-            if response == 'c':
-                balance_user = db_operations.check_balance_by_id(user_id)
-                print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                print("You have ", balance_user, " rupees in your account ")
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-            elif response == 'w':
-                print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                withdraw = int(input("Enter the amount you would like to withdraw : "))
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                balance_user = db_operations.check_balance_by_id(user_id)
-                if response.lower() == 'return':
-                    continue
-                if withdraw > balance_user:
-                    print("Insufficient balance : ")
-                else:
-                    balance_user = balance_user - withdraw
-                    db_operations.update_balance_by_id(user_id, balance_user)
-                    print("The amount you have withdrawn is : ", withdraw)
-                    print("The amount left in your account is : ", balance_user)
+def change_pin_by_id(user_id, newpin):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    command = "UPDATE users SET pin='{npin}' WHERE user_id={id}".format(npin=newpin, id=user_id)
+    cursor.execute(command)
+    sqliteConnection.commit()
+    sqliteConnection.close()
 
-            elif response == 'd':
-                print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                deposit = int(input("Enter the amount you would like to deposit : "))
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                if response.lower() == 'return':
-                    continue
-                if deposit > 50000:
-                    print("Deposit Limit Exceeded ...")
-                else:
-                    balance_user = db_operations.check_balance_by_id(user_id)
-                    balance_user = balance_user + deposit
-                    db_operations.update_balance_by_id(user_id, balance_user)
-                    print("The amount you have deposited is : ", deposit)
-                    print("The amount left in your account is : ", balance_user)
 
-            elif response == 'p':
-                print("________________________________________________")
-                old_pin = input("Please enter your old pin : ")
-                print("________________________________________________")
-                if response.lower() == 'return':
-                    continue
+def check_pin_by_id(user_id, pin_entered):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    command = "SELECT pin FROM users WHERE user_id={id}".format(id=user_id)
+    cursor.execute(command)
+    pin_in_db = cursor.fetchall()
+    if pin_in_db[0][0] == pin_entered:
+        return True
+    return False
 
-                if old_pin == pin:
-                    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                    new_pin = str(input("Please enter the new pin (4 digits): "))
-                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-                    if len(new_pin) == 4:
-                        print("+++++++++++++++++++++++++++++++++")
-                        pin_confirm = str(input("Confirm your new pin : "))
-                        print("+++++++++++++++++++++++++++++++++")
-                        if pin_confirm != new_pin:
-                            print("PIN MISMATCH ! ")
-                        else:
-                            db_operations.change_pin_by_id(user_id, hash_pin(new_pin))
-                            print("New pin saved")
-                    else:
-                        print("Your pin must contain 4 digits and must be different from your original pin")
+def check_balance_by_id(user_id):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    command = "SELECT balance FROM users WHERE user_id={id}".format(id=user_id)
+    cursor.execute(command)
+    balance_in_db = cursor.fetchall()
+    return balance_in_db[0][0]
 
-                else:
-                    print("Your pin is incorrect")
 
-            elif response == 'q':
-                print("Thank you for choosing MyBank")
-                exit()
+def update_balance_by_id(user_id, balance):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    command = "UPDATE users SET balance={nbalance} WHERE user_id={id}".format(nbalance=balance, id=user_id)
+    cursor.execute(command)
+    sqliteConnection.commit()
+    sqliteConnection.close()
 
-            else:
-                print("!!!!!!!!!!!!!!!!!!!!")
-                print("Response is not valid")
+def get_all_user_ids():
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    cursor.execute("SELECT user_id FROM users")
+    user_ids = cursor.fetchall()
+    sqliteConnection.close()
+    return [user_id[0] for user_id in user_ids]
 
-    elif entry_Choice == '3':
-        print(":::::::::::::::::::::::::")
-        id = int(input("ENTER YOUR ACCOUNT NUMBER: "))
-        while (id not in db_operations.get_all_user_ids()):
-            print("!!!ENTER THE CORRECT ACCOUNT NUMBER!!!")
-            id = int(input("ENTER YOUR ACCOUNT NUMBER: "))
-
-        print(":::::::::::::::::::::::::")
-        pin = input("ENTER YOUR PIN : ")
-        print(":::::::::::::::::::::::::")
-
-        if db_operations.check_pin_by_id(id, hash_pin(pin)) == False:
-            print(":::::::::::::::::::::::::")
-            print("PIN ENTERED IS INVALID")
-            print(":::::::::::::::::::::::::")
-            break
-
-        print("PLEASE CONFIRM THE DELETION OF THE ACCOUNT BY TYPING \"CONFIRM\"")
-        confirmation=input().lower()
-        if (confirmation=="confirm"):
-            db_operations.delete_user_by_id(id)
-
-    elif entry_Choice.lower() == 'return':
-        print("Thank you for choosing MyBank")
-        exit()
-
-    else:
-        if wrong_input == 2:
-            print("!!!!!!!!!!!!!!!!!!!!")
-            print("You have failed 3 times .... Closing Session")
-            break
-
-        wrong_input += 1
-        print("!!!!!!!!!!!!!!!!!!!!")
-        print("Response is not valid ... Tries left: ", 3 - wrong_input)
+def delete_user_by_id(user_id):
+    sqliteConnection = sqlite3.connect('atm.db')
+    cursor = sqliteConnection.cursor()
+    command = "DELETE FROM users WHERE user_id = ?"
+    cursor.execute(command, (user_id,))
+    sqliteConnection.commit()
+    sqliteConnection.close()
